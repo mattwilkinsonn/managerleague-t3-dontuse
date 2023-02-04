@@ -6,7 +6,7 @@ generator client {
 }
 
 datasource db {
-    provider = "sqlite"
+    provider = "postgresql"
     // NOTE: When using postgresql, mysql or sqlserver, uncomment the @db.Text annotations in model Account below
     // Further reading:
     // https://next-auth.js.org/adapters/prisma#create-the-prisma-schema
@@ -14,25 +14,19 @@ datasource db {
     url      = env("DATABASE_URL")
 }
 
-model Example {
-    id        String   @id @default(cuid())
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
-}
-
 // Necessary for Next auth
 model Account {
-    id                String  @id @default(cuid())
-    userId            String
+    id                String  @id @default(uuid()) @db.Uuid
+    userId            String  @db.Uuid
     type              String
     provider          String
     providerAccountId String
-    refresh_token     String? // @db.Text
-    access_token      String? // @db.Text
+    refresh_token     String? @db.Text
+    access_token      String? @db.Text
     expires_at        Int?
     token_type        String?
     scope             String?
-    id_token          String? // @db.Text
+    id_token          String? @db.Text
     session_state     String?
     user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -40,21 +34,24 @@ model Account {
 }
 
 model Session {
-    id           String   @id @default(cuid())
+    id           String   @id @default(uuid()) @db.Uuid
     sessionToken String   @unique
-    userId       String
+    userId       String   @db.Uuid
     expires      DateTime
     user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model User {
-    id            String    @id @default(cuid())
+    id            String          @id @default(uuid()) @db.Uuid
     name          String?
-    email         String?   @unique
+    email         String?         @unique
     emailVerified DateTime?
     image         String?
     accounts      Account[]
     sessions      Session[]
+    setupStatus   UserSetupStatus @default(CREATE_CLUB)
+    role          UserRole        @default(USER)
+    Club          Club[]
 }
 
 model VerificationToken {
@@ -63,4 +60,142 @@ model VerificationToken {
     expires    DateTime
 
     @@unique([identifier, token])
+}
+
+enum UserRole {
+    ADMIN
+    USER
+}
+
+enum Position {
+    GK
+    DL
+    DC
+    DR
+    WBL
+    WBR
+    DM
+    ML
+    MC
+    MR
+    AML
+    AMC
+    AMR
+    LF
+    ST
+    RF
+}
+
+enum Role {
+    GOALKEEPER
+    FULLBACK
+    CENTER_BACK
+    WING_BACK
+    DEFENSIVE_MIDFIELDER
+    CENTRAL_MIDFIELDER
+    WINGER
+    ATTACKING_MIDFIELDER
+    STRIKER
+}
+
+enum UserSetupStatus {
+    CREATE_CLUB
+    DRAFT_PLAYERS
+    DONE
+}
+
+model Club {
+    id         String       @id @default(uuid()) @db.Uuid
+    name       String       @unique
+    createdAt  DateTime     @default(now())
+    updatedAt  DateTime     @updatedAt
+    user       User         @relation(fields: [userId], references: [id])
+    userId     String       @db.Uuid
+    PlayerClub PlayerClub[]
+}
+
+model PlayerClub {
+    id       String    @id @default(uuid()) @db.Uuid
+    player   Player    @relation(fields: [playerId], references: [id])
+    playerId String    @db.Uuid
+    club     Club      @relation(fields: [clubId], references: [id])
+    clubId   String    @db.Uuid
+    joinedAt DateTime  @default(now())
+    leftAt   DateTime?
+}
+
+model PlayerPositionRole {
+    id       String   @id @default(uuid()) @db.Uuid
+    player   Player   @relation(fields: [playerId], references: [id])
+    playerId String   @db.Uuid
+    position Position
+    role     Role
+    rating   Int      @default(0)
+}
+
+model Player {
+    id                 String               @id @default(uuid()) @db.Uuid
+    firstName          String
+    lastName           String
+    birthSeason        Season               @relation(fields: [birthSeasonId], references: [id])
+    birthSeasonId      Int
+    ability            Int                  @default(0)
+    aerialAbility      Int                  @default(0)
+    commandOfArea      Int                  @default(0)
+    communication      Int                  @default(0)
+    eccentricity       Int                  @default(0)
+    handling           Int                  @default(0)
+    kicking            Int                  @default(0)
+    oneOnOnes          Int                  @default(0)
+    reflexes           Int                  @default(0)
+    rushingOut         Int                  @default(0)
+    tendencyToPunch    Int                  @default(0)
+    throwing           Int                  @default(0)
+    corners            Int                  @default(0)
+    crossing           Int                  @default(0)
+    dribbling          Int                  @default(0)
+    finishing          Int                  @default(0)
+    firstTouch         Int                  @default(0)
+    freeKicks          Int                  @default(0)
+    heading            Int                  @default(0)
+    longShots          Int                  @default(0)
+    longThrows         Int                  @default(0)
+    marking            Int                  @default(0)
+    passing            Int                  @default(0)
+    penaltyTaking      Int                  @default(0)
+    tackling           Int                  @default(0)
+    technique          Int                  @default(0)
+    aggression         Int                  @default(0)
+    anticipation       Int                  @default(0)
+    bravery            Int                  @default(0)
+    composure          Int                  @default(0)
+    concentration      Int                  @default(0)
+    decisions          Int                  @default(0)
+    determination      Int                  @default(0)
+    flair              Int                  @default(0)
+    leadership         Int                  @default(0)
+    offTheBall         Int                  @default(0)
+    positioning        Int                  @default(0)
+    teamwork           Int                  @default(0)
+    vision             Int                  @default(0)
+    workRate           Int                  @default(0)
+    acceleration       Int                  @default(0)
+    agility            Int                  @default(0)
+    balance            Int                  @default(0)
+    jumping            Int                  @default(0)
+    naturalFitness     Int                  @default(0)
+    pace               Int                  @default(0)
+    stamina            Int                  @default(0)
+    strength           Int                  @default(0)
+    PlayerClub         PlayerClub[]
+    PlayerPositionRole PlayerPositionRole[]
+}
+
+model Season {
+    id          Int      @id @default(autoincrement())
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+    startDate   DateTime
+    endDate     DateTime
+    bornPlayers Player[]
 }
